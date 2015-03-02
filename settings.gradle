@@ -1,0 +1,8 @@
+include   'jar', 'war', 'custom'
+
+rootProject.children.each {
+     it.buildFileName = it.name + '.gradle'
+}
+
+rootProject.name = "gretty-demo"
+

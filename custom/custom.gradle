@@ -1,0 +1,61 @@
+evaluationDependsOn(':jar')
+evaluationDependsOn(':war')
+
+// First a JAR example - let there be some tasks that add custom files to a custom folder
+ext.personalizationFolderJar = "${buildDir}/personalize-${customer}/jar"
+task addSampleJarCustomFile(type: Copy){
+	from "jar"
+	include "${customer}.xml"
+	into personalizationFolderJar
+	rename {"custom-jar.xml"}
+}
+task prepareForJarPersonalization(dependsOn: [addSampleJarCustomFile, ':jar:compileJava', ':jar:processResources']){}
+// create a JAR that contains the customized files, plus the original JAR dependencies
+task personalizeJar(type: Jar, dependsOn: prepareForJarPersonalization){
+    archiveName "${customer}.jar"
+    duplicatesStrategy 'exclude'
+    from personalizationFolderJar
+    from project(':jar').sourceSets.main.output
+    doLast {
+	    def res = archivePath.getPath() - projectDir
+        def size = Math.round(1000 * archivePath.size() / (1024*1024))/1000
+        logger.lifecycle("customized jar for ${customer} into $res with size $size MB")
+    }
+}
+// a task to run it, demonstrating that this works, at runtime we get a JAR with the uncustomized source, plus the customized entries
+// ./gradlew :custom:rJ -Pcustomer=demo should print
+// :custom:prepareForJarPersonalization UP-TO-DATE
+// :custom:runJar
+// This is the Jar demo file.
+task runJar(type: JavaExec, dependsOn: prepareForJarPersonalization){
+    main 'demo.Main'
+    doFirst{
+        args "/custom-jar.xml"
+        classpath "${project(':jar').configurations.runtime.asPath}:${project(':jar').compileJava.destinationDir}:${project(':jar').processResources.destinationDir}:${personalizationFolderJar}"
+    }
+}
+
+// Now let us reproduce this via a WAR file, and instead of JavaExec we should use Gretty :)
+ext.personalizationFolderWar = "${buildDir}/personalize-${customer}/war"
+task addSampleWarCustomFile(type: Copy){
+    from "war"
+    include "${customer}.xml"
+    into personalizationFolderWar
+    rename {"custom-war.xml"}
+}
+task prepareForWarPersonalization(dependsOn: [addSampleWarCustomFile, ':war:compileJava', ':war:processResources']){}
+// create a WAR that contains the customized files, plus the original WAR dependencies
+task personalizeWar(type: War, dependsOn: prepareForJarPersonalization){
+    archiveName "${customer}.war"
+    duplicatesStrategy 'exclude'
+    
+    from personalizationFolderWar
+    from project(':war').sourceSets.main.output
+    from file("${project(':war').projectDir}/src/main/webapp/")
+    
+    doLast {
+        def res = archivePath.getPath() - projectDir
+        def size = Math.round(1000 * archivePath.size() / (1024*1024))/1000
+        logger.lifecycle("customized war for ${customer} into $res with size $size MB")
+    }
+}
