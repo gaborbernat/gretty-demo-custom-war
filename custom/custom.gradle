@@ -43,11 +43,14 @@ task addSampleWarCustomFile(type: Copy){
     into personalizationFolderWar
     rename {"custom-war.xml"}
 }
-task prepareForWarPersonalization(dependsOn: [addSampleWarCustomFile, ':war:compileJava', ':war:processResources']){}
+task prepareForWarPersonalization(dependsOn: [addSampleWarCustomFile, ':jar:compileJava', ':jar:processResources', ':war:compileJava', ':war:processResources']){}
 // create a WAR that contains the customized files, plus the original WAR dependencies
 task personalizeWar(type: War, dependsOn: prepareForJarPersonalization){
     archiveName "${customer}.war"
     duplicatesStrategy 'exclude'
+
+    from personalizationFolderJar
+    from project(':jar').sourceSets.main.output
     
     from personalizationFolderWar
     from project(':war').sourceSets.main.output
