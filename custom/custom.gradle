@@ -1,24 +1,30 @@
 evaluationDependsOn(':jar')
 evaluationDependsOn(':war')
 
+if (!project.hasProperty("customer")) {
+    def customerMissingValue = "not_set"
+    logger.lifecycle("no customer specified via -Pcustomer={}, fallback to '${customerMissingValue}'");
+    project.ext.customer = customerMissingValue;
+}
+
 // First a JAR example - let there be some tasks that add custom files to a custom folder
 ext.personalizationFolderJar = "${buildDir}/personalize-${customer}/jar"
-task addSampleJarCustomFile(type: Copy){
-	from "jar"
-	include "${customer}.xml"
-	into personalizationFolderJar
-	rename {"custom-jar.xml"}
+task addSampleJarCustomFile(type: Copy) {
+    from "jar"
+    include "${customer}.xml"
+    into personalizationFolderJar
+    rename { "custom-jar.xml" }
 }
-task prepareForJarPersonalization(dependsOn: [addSampleJarCustomFile, ':jar:compileJava', ':jar:processResources']){}
+task prepareForJarPersonalization(dependsOn: [addSampleJarCustomFile, ':jar:compileJava', ':jar:processResources']) {}
 // create a JAR that contains the customized files, plus the original JAR dependencies
-task personalizeJar(type: Jar, dependsOn: prepareForJarPersonalization){
+task personalizeJar(type: Jar, dependsOn: prepareForJarPersonalization) {
     archiveName "${customer}.jar"
     duplicatesStrategy 'exclude'
     from personalizationFolderJar
     from project(':jar').sourceSets.main.output
     doLast {
-	    def res = archivePath.getPath() - projectDir
-        def size = Math.round(1000 * archivePath.size() / (1024*1024))/1000
+        def res = archivePath.getPath() - projectDir
+        def size = Math.round(1000 * archivePath.size() / (1024 * 1024)) / 1000
         logger.lifecycle("customized jar for ${customer} into $res with size $size MB")
     }
 }
@@ -27,9 +33,9 @@ task personalizeJar(type: Jar, dependsOn: prepareForJarPersonalization){
 // :custom:prepareForJarPersonalization UP-TO-DATE
 // :custom:runJar
 // This is the Jar demo file.
-task runJar(type: JavaExec, dependsOn: prepareForJarPersonalization){
+task runJar(type: JavaExec, dependsOn: prepareForJarPersonalization) {
     main 'demo.Main'
-    doFirst{
+    doFirst {
         args "/custom-jar.xml"
         classpath "${project(':jar').configurations.runtime.asPath}:${project(':jar').compileJava.destinationDir}:${project(':jar').processResources.destinationDir}:${personalizationFolderJar}"
     }
@@ -37,28 +43,29 @@ task runJar(type: JavaExec, dependsOn: prepareForJarPersonalization){
 
 // Now let us reproduce this via a WAR file, and instead of JavaExec we should use Gretty :)
 ext.personalizationFolderWar = "${buildDir}/personalize-${customer}/war"
-task addSampleWarCustomFile(type: Copy){
+task addSampleWarCustomFile(type: Copy) {
     from "war"
     include "${customer}.xml"
     into personalizationFolderWar
-    rename {"custom-war.xml"}
+    rename { "custom-war.xml" }
 }
-task prepareForWarPersonalization(dependsOn: [addSampleWarCustomFile, ':jar:compileJava', ':jar:processResources', ':war:compileJava', ':war:processResources']){}
+task prepareForWarPersonalization(dependsOn: [addSampleWarCustomFile, ':jar:compileJava', ':jar:processResources', ':war:compileJava', ':war:processResources']) {
+}
 // create a WAR that contains the customized files, plus the original WAR dependencies
-task personalizeWar(type: War, dependsOn: prepareForJarPersonalization){
+task personalizeWar(type: War, dependsOn: prepareForJarPersonalization) {
     archiveName "${customer}.war"
     duplicatesStrategy 'exclude'
 
     from personalizationFolderJar
     from project(':jar').sourceSets.main.output
-    
+
     from personalizationFolderWar
     from project(':war').sourceSets.main.output
     from file("${project(':war').projectDir}/src/main/webapp/")
-    
+
     doLast {
         def res = archivePath.getPath() - projectDir
-        def size = Math.round(1000 * archivePath.size() / (1024*1024))/1000
+        def size = Math.round(1000 * archivePath.size() / (1024 * 1024)) / 1000
         logger.lifecycle("customized war for ${customer} into $res with size $size MB")
     }
 }
